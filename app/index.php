@@ -11,7 +11,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
     ];
 
     $data = [
-        "model" => "command-a-03-2025",
+        "model" => "command-a-vision-07-2025",
         "prompt" => $finalPrompt
     ];
 
