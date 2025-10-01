@@ -2,20 +2,23 @@
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
     $prompt = $_POST["prompt"];
 
-    // Forcer l'IA à ne renvoyer que du code
-    $finalPrompt = $prompt . "\n\nIMPORTANT : Réponds uniquement avec du code valide, sans texte ni explication.";
-
+    // Préparer la requête pour Cohere Chat API
     $headers = [
         "Content-Type: application/json",
-        "Authorization: Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ"
+        "Authorization: " . "Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ"
     ];
 
     $data = [
-        "model" => "command-a-vision-07-2025",
-        "prompt" => $finalPrompt
+        "model" => "command-a-03-2025",  // modèle chat disponible chez Cohere
+        "messages" => [
+            [
+                "role" => "user",
+                "content" => $prompt . "\n\nIMPORTANT : Réponds uniquement avec du code valide, sans texte ni explication."
+            ]
+        ]
     ];
 
-    $ch = curl_init("https://api.cohere.ai/v1/generate");
+    $ch = curl_init("https://api.cohere.ai/v2/chat");
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -34,10 +37,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Codex AI - Code Generator</title>
-    <!-- Bootstrap 5 CSS -->
+    <title>Codex AI - Code Generator (Chat API)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Pyodide -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <style>
         #codeOutput {
@@ -60,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
         }
 
         .section-container {
-            height: calc(100vh - 160px); /* ajusté pour header + form */
+            height: calc(100vh - 160px);
         }
     </style>
 </head>
@@ -90,7 +91,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
         </div>
     </div>
 
-    <!-- Bootstrap JS bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -169,10 +169,12 @@ buf.getvalue()
             const data = await response.json();
 
             let code = "";
-            if (data.generations && data.generations.length > 0) {
-                code = data.generations[0].text.trim();
+            if (data.message && data.message.content) {
+                code = data.message.content.trim();
                 const match = code.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
                 if (match) code = match[1].trim();
+            } else if (data.output && data.output[0] && data.output[0].content) {
+                code = data.output[0].content.trim();
             } else {
                 code = "❌ Erreur API: " + JSON.stringify(data, null, 2);
             }
@@ -189,3 +191,4 @@ buf.getvalue()
 </body>
 
 </html>
+
