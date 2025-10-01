@@ -9,7 +9,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
     ];
 
     $data = [
-        "model" => "command-a-03-2025",  // modèle chat disponible chez Cohere
+        "model" => "command-a-03-2025",  // modèle chat supporté
         "messages" => [
             [
                 "role" => "user",
@@ -50,6 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
             white-space: pre-wrap;
             font-family: monospace;
             overflow-y: auto;
+            position: relative;
         }
 
         iframe {
@@ -62,6 +63,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
 
         .section-container {
             height: calc(100vh - 160px);
+        }
+
+        .spinner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
         }
     </style>
 </head>
@@ -82,7 +91,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
         <div class="row h-100 g-3">
             <div class="col-12 col-md-6 h-100 d-flex flex-column">
                 <h2>📜 Code généré</h2>
-                <div id="codeOutput" class="flex-grow-1"></div>
+                <div id="codeOutput" class="flex-grow-1 d-flex align-items-center justify-content-center">
+                    <!-- Spinner affiché pendant la génération -->
+                    <div id="spinner" class="spinner-overlay d-none">
+                        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <p class="mt-2 text-white">Génération du code en cours...</p>
+                    </div>
+                </div>
             </div>
             <div class="col-12 col-md-6 h-100 d-flex flex-column">
                 <h2>🖥️ Monitor</h2>
@@ -159,7 +174,10 @@ buf.getvalue()
             if (!prompt) return;
 
             const outputElement = document.getElementById("codeOutput");
-            outputElement.textContent = "⏳ Génération en cours...";
+            const spinner = document.getElementById("spinner");
+            spinner.classList.remove("d-none");
+            outputElement.textContent = "";
+
             document.getElementById("liveFrame").srcdoc = "";
 
             const response = await fetch("", {
@@ -168,13 +186,14 @@ buf.getvalue()
             });
             const data = await response.json();
 
+            spinner.classList.add("d-none");
+
             let code = "";
-            if (data.message && data.message.content) {
-                code = data.message.content.trim();
+            if (data.message && data.message.content && data.message.content.length > 0) {
+                code = data.message.content[0].text.trim();
+
                 const match = code.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
                 if (match) code = match[1].trim();
-            } else if (data.output && data.output[0] && data.output[0].content) {
-                code = data.output[0].content.trim();
             } else {
                 code = "❌ Erreur API: " + JSON.stringify(data, null, 2);
             }
@@ -191,4 +210,3 @@ buf.getvalue()
 </body>
 
 </html>
-
