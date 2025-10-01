@@ -11,7 +11,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
     ];
 
     $data = [
-        "model" => "command-r-plus",
+        "model" => "c4ai-aya-expanse-8b",
         "prompt" => $finalPrompt
     ];
 
