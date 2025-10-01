@@ -2,14 +2,13 @@
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
     $prompt = $_POST["prompt"];
 
-    // Préparer la requête pour Cohere Chat API
     $headers = [
         "Content-Type: application/json",
         "Authorization: " . "Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ"
     ];
 
     $data = [
-        "model" => "command-a-03-2025",  // modèle chat supporté
+        "model" => "command-a-03-2025",
         "messages" => [
             [
                 "role" => "user",
@@ -35,183 +34,188 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
 <html lang="fr">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Codex AI - Code Generator (Chat API)</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
-    <style>
-        #codeOutput {
-            background: #1e1e1e;
-            color: #00ff00;
-            padding: 15px;
-            border-radius: 8px;
-            height: 100%;
-            white-space: pre-wrap;
-            font-family: monospace;
-            overflow-y: auto;
-            position: relative;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codex AI - Code Generator (Chat API)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+<style>
+    #codeOutput {
+        background: #1e1e1e;
+        color: #00ff00;
+        padding: 15px;
+        border-radius: 8px;
+        height: 100%;
+        white-space: pre-wrap;
+        font-family: monospace;
+        overflow-y: auto;
+        position: relative;
+    }
 
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            background: white;
-        }
+    iframe {
+        width: 100%;
+        height: 100%;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        background: white;
+    }
 
-        .section-container {
-            height: calc(100vh - 160px);
-        }
+    .section-container {
+        height: calc(100vh - 160px);
+    }
 
-        .spinner-overlay {
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-    </style>
+    .spinner-overlay {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+</style>
 </head>
 
 <body>
-    <header class="bg-primary text-white text-center py-3 mb-3">
-        <h1>🤖 Codex AI - Code Generator</h1>
-    </header>
+<header class="bg-primary text-white text-center py-3 mb-3">
+    <h1>🤖 Codex AI - Code Generator</h1>
+</header>
 
-    <div class="container mb-3">
-        <form id="promptForm" class="d-flex flex-column flex-md-row gap-2">
-            <textarea class="form-control" name="prompt" id="prompt" placeholder="Ex: Crée une fonction Python qui additionne deux nombres..." rows="3"></textarea>
-            <button type="submit" class="btn btn-primary">Générer</button>
-        </form>
-    </div>
+<div class="container mb-3">
+    <form id="promptForm" class="d-flex flex-column flex-md-row gap-2">
+        <textarea class="form-control" name="prompt" id="prompt" placeholder="Ex: Crée une fonction Python qui additionne deux nombres..." rows="3"></textarea>
+        <button type="submit" class="btn btn-primary">Générer</button>
+    </form>
+</div>
 
-    <div class="container-fluid section-container">
-        <div class="row h-100 g-3">
-            <div class="col-12 col-md-6 h-100 d-flex flex-column">
-                <h2>📜 Code généré</h2>
-                <div id="codeOutput" class="flex-grow-1">
-                    <!-- Spinner indépendant -->
-                    <div id="spinner" class="spinner-overlay d-none">
-                        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
-                        <p class="mt-2 text-white">⏳ Génération du code en cours...</p>
-                    </div>
-                    <pre id="codeText" class="m-0"></pre>
+<div class="container-fluid section-container">
+    <div class="row h-100 g-3">
+        <div class="col-12 col-md-6 h-100 d-flex flex-column">
+            <h2>📜 Code généré</h2>
+            <div id="codeOutput" class="flex-grow-1">
+                <!-- Spinner + compteur indépendant -->
+                <div id="spinner" class="spinner-overlay d-none">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
+                    <p class="mt-2 text-white" id="spinnerText">⏳ Génération du code en cours...</p>
                 </div>
-            </div>
-            <div class="col-12 col-md-6 h-100 d-flex flex-column">
-                <h2>🖥️ Monitor</h2>
-                <iframe id="liveFrame" class="flex-grow-1"></iframe>
+                <pre id="codeText" class="m-0"></pre>
             </div>
         </div>
+        <div class="col-12 col-md-6 h-100 d-flex flex-column">
+            <h2>🖥️ Monitor</h2>
+            <iframe id="liveFrame" class="flex-grow-1"></iframe>
+        </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let pyodideReady = false;
+let pyodide;
 
-    <script>
-        let pyodideReady = false;
-        let pyodide;
+async function loadPyodideAsync() {
+    pyodide = await loadPyodide();
+    pyodideReady = true;
+}
+loadPyodideAsync();
 
-        async function loadPyodideAsync() {
-            pyodide = await loadPyodide();
-            pyodideReady = true;
+function typeWriterEffect(element, text, speed = 10) {
+    return new Promise(resolve => {
+        let i = 0;
+        function typing() {
+            if (i < text.length) {
+                element.textContent += text.charAt(i);
+                element.scrollTop = element.scrollHeight; // scroll automatique
+                i++;
+                setTimeout(typing, speed);
+            } else resolve();
         }
-        loadPyodideAsync();
+        typing();
+    });
+}
 
-        function typeWriterEffect(element, text, speed = 15, callback) {
-            element.textContent = "";
-            let i = 0;
-            function typing() {
-                if (i < text.length) {
-                    element.textContent += text.charAt(i);
-                    i++;
-                    setTimeout(typing, speed);
-                } else if (callback) {
-                    callback();
-                }
-            }
-            typing();
+async function executeCode(language, code) {
+    const monitor = document.getElementById("liveFrame");
+    if (language === "html") {
+        monitor.srcdoc = code;
+    } else if (language === "js") {
+        try {
+            let result = eval(code);
+            monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${result === undefined ? "" : result}</pre>`;
+        } catch (e) {
+            monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
         }
-
-        async function executeCode(language, code) {
-            const monitor = document.getElementById("liveFrame");
-
-            if (language === "html") {
-                monitor.srcdoc = code;
-            } else if (language === "js") {
-                try {
-                    let result = eval(code);
-                    monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${result === undefined ? "" : result}</pre>`;
-                } catch (e) {
-                    monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
-                }
-            } else if (language === "python") {
-                if (!pyodideReady) {
-                    monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Python engine loading...</pre>`;
-                    await loadPyodideAsync();
-                }
-                try {
-                    let output = await pyodide.runPythonAsync(`
+    } else if (language === "python") {
+        if (!pyodideReady) {
+            monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Python engine loading...</pre>`;
+            await loadPyodideAsync();
+        }
+        try {
+            let output = await pyodide.runPythonAsync(`
 import sys
 import io
 buf = io.StringIO()
 sys.stdout = buf
 ${code}
 buf.getvalue()
-                    `);
-                    monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${output}</pre>`;
-                } catch (e) {
-                    monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
-                }
-            } else {
-                monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Langage non supporté pour exécution</pre>`;
-            }
+            `);
+            monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${output}</pre>`;
+        } catch (e) {
+            monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
         }
+    } else {
+        monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Langage non supporté pour exécution</pre>`;
+    }
+}
 
-        document.getElementById("promptForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const prompt = document.getElementById("prompt").value.trim();
-            if (!prompt) return;
+document.getElementById("promptForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const prompt = document.getElementById("prompt").value.trim();
+    if (!prompt) return;
 
-            const outputElement = document.getElementById("codeText");
-            const spinner = document.getElementById("spinner");
+    const codeElement = document.getElementById("codeText");
+    const spinner = document.getElementById("spinner");
+    const spinnerText = document.getElementById("spinnerText");
+    codeElement.textContent = "";
+    spinner.classList.remove("d-none");
+    document.getElementById("liveFrame").srcdoc = "";
 
-            // Afficher le spinner + message
-            spinner.classList.remove("d-none");
-            outputElement.textContent = "";
-            document.getElementById("liveFrame").srcdoc = "";
+    // compteur de secondes
+    let seconds = 0;
+    spinnerText.textContent = `⏳ Génération du code en cours... 0s`;
+    let timer = setInterval(() => {
+        seconds++;
+        spinnerText.textContent = `⏳ Génération du code en cours... ${seconds}s`;
+    }, 1000);
 
-            const response = await fetch("", {
-                method: "POST",
-                body: new URLSearchParams({ prompt })
-            });
-            const data = await response.json();
+    const response = await fetch("", {
+        method: "POST",
+        body: new URLSearchParams({ prompt })
+    });
+    const data = await response.json();
 
-            // Cacher le spinner
-            spinner.classList.add("d-none");
+    clearInterval(timer);
+    spinner.classList.add("d-none");
 
-            let code = "";
-            if (data.message && data.message.content && data.message.content.length > 0) {
-                code = data.message.content[0].text.trim();
+    let code = "";
+    if (data.message && data.message.content && data.message.content.length > 0) {
+        code = data.message.content[0].text;
 
-                // Extraire seulement le code entre ```
-                const match = code.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
-                if (match) code = match[1].trim();
-            } else {
-                code = "❌ Erreur API: " + JSON.stringify(data, null, 2);
-            }
+        // Si le code est long, on peut afficher progressivement
+        const match = code.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
+        if (match) code = match[1];
+    } else {
+        code = "❌ Erreur API: " + JSON.stringify(data, null, 2);
+    }
 
-            typeWriterEffect(outputElement, code, 10, async () => {
-                let lang = "js";
-                if (code.includes("<html") || code.includes("<body")) lang = "html";
-                else if (prompt.toLowerCase().includes("python")) lang = "python";
+    await typeWriterEffect(codeElement, code);
 
-                await executeCode(lang, code);
-            });
-        });
-    </script>
+    // Déterminer le langage
+    let lang = "js";
+    if (code.includes("<html") || code.includes("<body")) lang = "html";
+    else if (prompt.toLowerCase().includes("python")) lang = "python";
+
+    await executeCode(lang, code);
+});
+</script>
 </body>
-
 </html>
 
