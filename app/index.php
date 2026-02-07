@@ -1,50 +1,52 @@
 <?php
-// ================= CONFIG =================
-$API_KEY = "Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ";
-
-// ================= AJAX =================
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
-
     $prompt = $_POST["prompt"];
 
-    $payload = [
+    $headers = [
+        "Content-Type: application/json",
+        "Authorization: Bearer TON_API_KEY_COHERE"
+    ];
+
+    $data = [
         "model" => "command-a-03-2025",
-        "messages" => [[
-            "role" => "user",
-            "content" =>
-                $prompt .
-                "\n\nIMPORTANT : Réponds UNIQUEMENT avec du code valide. Aucun texte. Aucun commentaire hors code."
-        ]]
+        "messages" => [
+            [
+                "role" => "user",
+                "content" => $prompt . "\n\nIMPORTANT : Réponds uniquement avec du code valide."
+            ]
+        ]
     ];
 
     $ch = curl_init("https://api.cohere.ai/v2/chat");
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            "Content-Type: application/json",
-            "Authorization: $API_KEY"
-        ],
-        CURLOPT_POSTFIELDS => json_encode($payload)
-    ]);
-
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     $response = curl_exec($ch);
     curl_close($ch);
 
-    $data = json_decode($response, true);
-    $code = $data["message"]["content"][0]["text"] ?? "";
+    $json = json_decode($response, true);
 
-    // ================= LANG DETECTION =================
+    $code = "";
+    if (isset($json["message"]["content"])) {
+        foreach ($json["message"]["content"] as $part) {
+            if ($part["type"] === "text") {
+                $code .= $part["text"];
+            }
+        }
+    }
+
+    // Nettoyage markdown ```lang
+    $code = preg_replace('/```[a-zA-Z]*\n?/', '', $code);
+    $code = str_replace('```', '', $code);
+    $code = trim($code);
+
+    // Détection langage + filename
     $filename = "code.txt";
-
-    if (strpos($code, "<html") !== false) $filename = "index.html";
-    elseif (strpos($code, "def ") !== false) $filename = "main.py";
-    elseif (strpos($code, "console.log") !== false || strpos($code, "function") !== false) $filename = "script.js";
-    elseif (strpos($code, "<?php") !== false) $filename = "index.php";
-
-    // ================= FILE GENERATION =================
-    $tmpPath = sys_get_temp_dir() . "/" . $filename;
-    file_put_contents($tmpPath, $code);
+    if (str_contains($code, "<html")) $filename = "index.html";
+    elseif (str_contains($code, "def ")) $filename = "main.py";
+    elseif (str_contains($code, "<?php")) $filename = "script.php";
+    elseif (str_contains($code, "function") || str_contains($code, "console.log")) $filename = "script.js";
 
     header("Content-Type: application/json");
     echo json_encode([
@@ -58,98 +60,89 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Codex AI — Générateur de Code</title>
+<title>Codex AI – Générateur de code</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <style>
-body{background:#0e0e0e;color:#00ff99}
-#codeOutput{background:#111;color:#00ff00;font-family:monospace;padding:15px;border-radius:8px;white-space:pre-wrap;height:100%;overflow:auto}
-iframe{width:100%;height:100%;border:2px solid #00ff99;border-radius:8px}
-.section{height:calc(100vh - 160px)}
-.download-btn{margin-top:10px}
+body { background:#0f172a; color:white }
+#codeOutput { background:#020617; color:#22c55e; padding:15px; border-radius:8px; white-space:pre-wrap; overflow:auto; font-family:monospace; height:100% }
+iframe { width:100%; height:100%; border-radius:8px; border:2px solid #2563eb }
+.section { height:calc(100vh - 180px) }
 </style>
 </head>
-
 <body>
-<header class="bg-dark text-center text-success py-3">
-<h1>🤖 Codex AI — Code Generator</h1>
+
+<header class="bg-primary text-center py-3">
+<h1>🤖 Codex AI</h1>
 </header>
 
-<div class="container my-3">
+<div class="container mt-3">
 <form id="promptForm" class="d-flex gap-2">
-<textarea id="prompt" class="form-control" rows="3" placeholder="Ex: Crée une page HTML avec bouton"></textarea>
+<textarea id="prompt" class="form-control" rows="3" placeholder="Ex: crée une fonction python..."></textarea>
 <button class="btn btn-success">Générer</button>
 </form>
 </div>
 
-<div class="container-fluid section">
+<div class="container-fluid section mt-3">
 <div class="row h-100 g-3">
-
-<div class="col-md-6 d-flex flex-column">
-<h4>📜 Code généré</h4>
+<div class="col-md-6 h-100 d-flex flex-column">
+<h5>📜 Code</h5>
 <div id="codeOutput" class="flex-grow-1"></div>
-<button id="downloadBtn" class="btn btn-outline-success download-btn d-none">⬇ Télécharger le fichier</button>
+<button id="downloadBtn" class="btn btn-outline-info mt-2 d-none">⬇ Télécharger le fichier</button>
 </div>
-
-<div class="col-md-6 d-flex flex-column">
-<h4>🖥️ Preview</h4>
+<div class="col-md-6 h-100 d-flex flex-column">
+<h5>🖥 Preview</h5>
 <iframe id="preview" class="flex-grow-1"></iframe>
 </div>
-
 </div>
 </div>
 
 <script>
-let generatedCode = "";
-let generatedFile = "";
+const form = document.getElementById("promptForm");
+const output = document.getElementById("codeOutput");
+const preview = document.getElementById("preview");
+const downloadBtn = document.getElementById("downloadBtn");
 
-document.getElementById("promptForm").addEventListener("submit", async e => {
+form.addEventListener("submit", async e => {
     e.preventDefault();
-
-    const prompt = document.getElementById("prompt").value.trim();
-    if (!prompt) return;
-
-    const output = document.getElementById("codeOutput");
-    const iframe = document.getElementById("preview");
-    const downloadBtn = document.getElementById("downloadBtn");
-
-    output.textContent = "⏳ Génération en cours...";
-    iframe.srcdoc = "";
+    output.textContent = "⏳ Génération...";
+    preview.srcdoc = "";
     downloadBtn.classList.add("d-none");
 
     const res = await fetch("", {
         method: "POST",
-        body: new URLSearchParams({ prompt })
+        body: new URLSearchParams({ prompt: prompt.value })
     });
 
     const data = await res.json();
-    generatedCode = data.code;
-    generatedFile = data.filename;
 
-    output.textContent = generatedCode;
-
-    // Preview HTML
-    if (generatedFile.endsWith(".html")) {
-        iframe.srcdoc = generatedCode;
+    if (!data.code) {
+        output.textContent = "❌ Erreur API";
+        return;
     }
 
-    downloadBtn.textContent = `⬇ Télécharger ${generatedFile}`;
+    output.textContent = data.code;
+
+    // Preview HTML
+    if (data.filename.endsWith(".html")) {
+        preview.srcdoc = data.code;
+    }
+
+    // Download
+    const blob = new Blob([data.code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+
+    downloadBtn.onclick = () => {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename;
+        a.click();
+    };
+
     downloadBtn.classList.remove("d-none");
 });
-
-// ================= DOWNLOAD =================
-document.getElementById("downloadBtn").onclick = () => {
-    const blob = new Blob([generatedCode], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = generatedFile;
-    a.click();
-};
 </script>
+
 </body>
 </html>
-
-
 
