@@ -4,7 +4,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
 
     $headers = [
         "Content-Type: application/json",
-        "Authorization: Bearer TON_API_KEY_COHERE"
+        "Authorization: Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ"
     ];
 
     $data = [
