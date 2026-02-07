@@ -1,222 +1,155 @@
 <?php
+// ================= CONFIG =================
+$API_KEY = "Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ";
+
+// ================= AJAX =================
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["prompt"])) {
+
     $prompt = $_POST["prompt"];
 
-    $headers = [
-        "Content-Type: application/json",
-        "Authorization: " . "Bearer Uw540GN865rNyiOs3VMnWhRaYQ97KAfudAHAnXzJ"
-    ];
-
-    $data = [
+    $payload = [
         "model" => "command-a-03-2025",
-        "messages" => [
-            [
-                "role" => "user",
-                "content" => $prompt . "\n\nIMPORTANT : Réponds uniquement avec du code valide, sans texte ni explication."
-            ]
-        ]
+        "messages" => [[
+            "role" => "user",
+            "content" =>
+                $prompt .
+                "\n\nIMPORTANT : Réponds UNIQUEMENT avec du code valide. Aucun texte. Aucun commentaire hors code."
+        ]]
     ];
 
     $ch = curl_init("https://api.cohere.ai/v2/chat");
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    $result = curl_exec($ch);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json",
+            "Authorization: $API_KEY"
+        ],
+        CURLOPT_POSTFIELDS => json_encode($payload)
+    ]);
+
+    $response = curl_exec($ch);
     curl_close($ch);
 
+    $data = json_decode($response, true);
+    $code = $data["message"]["content"][0]["text"] ?? "";
+
+    // ================= LANG DETECTION =================
+    $filename = "code.txt";
+
+    if (strpos($code, "<html") !== false) $filename = "index.html";
+    elseif (strpos($code, "def ") !== false) $filename = "main.py";
+    elseif (strpos($code, "console.log") !== false || strpos($code, "function") !== false) $filename = "script.js";
+    elseif (strpos($code, "<?php") !== false) $filename = "index.php";
+
+    // ================= FILE GENERATION =================
+    $tmpPath = sys_get_temp_dir() . "/" . $filename;
+    file_put_contents($tmpPath, $code);
+
     header("Content-Type: application/json");
-    echo $result;
+    echo json_encode([
+        "code" => $code,
+        "filename" => $filename
+    ]);
     exit;
 }
 ?>
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
 <meta charset="UTF-8">
+<title>Codex AI — Générateur de Code</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Codex AI - Code Generator (Chat API)</title>
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+
 <style>
-    #codeOutput {
-        background: #1e1e1e;
-        color: #00ff00;
-        padding: 15px;
-        border-radius: 8px;
-        height: 100%;
-        white-space: pre-wrap;
-        font-family: monospace;
-        overflow-y: auto;
-        position: relative;
-    }
-
-    iframe {
-        width: 100%;
-        height: 100%;
-        border: 2px solid #3498db;
-        border-radius: 8px;
-        background: white;
-    }
-
-    .section-container {
-        height: calc(100vh - 160px);
-    }
-
-    .spinner-overlay {
-        position: absolute;
-        top: 40%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-    }
+body{background:#0e0e0e;color:#00ff99}
+#codeOutput{background:#111;color:#00ff00;font-family:monospace;padding:15px;border-radius:8px;white-space:pre-wrap;height:100%;overflow:auto}
+iframe{width:100%;height:100%;border:2px solid #00ff99;border-radius:8px}
+.section{height:calc(100vh - 160px)}
+.download-btn{margin-top:10px}
 </style>
 </head>
 
 <body>
-<header class="bg-primary text-white text-center py-3 mb-3">
-    <h1>🤖 Codex AI - Code Generator</h1>
+<header class="bg-dark text-center text-success py-3">
+<h1>🤖 Codex AI — Code Generator</h1>
 </header>
 
-<div class="container mb-3">
-    <form id="promptForm" class="d-flex flex-column flex-md-row gap-2">
-        <textarea class="form-control" name="prompt" id="prompt" placeholder="Ex: Crée une fonction Python qui additionne deux nombres..." rows="3"></textarea>
-        <button type="submit" class="btn btn-primary">Générer</button>
-    </form>
+<div class="container my-3">
+<form id="promptForm" class="d-flex gap-2">
+<textarea id="prompt" class="form-control" rows="3" placeholder="Ex: Crée une page HTML avec bouton"></textarea>
+<button class="btn btn-success">Générer</button>
+</form>
 </div>
 
-<div class="container-fluid section-container">
-    <div class="row h-100 g-3">
-        <div class="col-12 col-md-6 h-100 d-flex flex-column">
-            <h2>📜 Code généré</h2>
-            <div id="codeOutput" class="flex-grow-1">
-                <!-- Spinner + compteur indépendant -->
-                <div id="spinner" class="spinner-overlay d-none">
-                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
-                    <p class="mt-2 text-white" id="spinnerText">⏳ Génération du code en cours...</p>
-                </div>
-                <pre id="codeText" class="m-0"></pre>
-            </div>
-        </div>
-        <div class="col-12 col-md-6 h-100 d-flex flex-column">
-            <h2>🖥️ Monitor</h2>
-            <iframe id="liveFrame" class="flex-grow-1"></iframe>
-        </div>
-    </div>
+<div class="container-fluid section">
+<div class="row h-100 g-3">
+
+<div class="col-md-6 d-flex flex-column">
+<h4>📜 Code généré</h4>
+<div id="codeOutput" class="flex-grow-1"></div>
+<button id="downloadBtn" class="btn btn-outline-success download-btn d-none">⬇ Télécharger le fichier</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div class="col-md-6 d-flex flex-column">
+<h4>🖥️ Preview</h4>
+<iframe id="preview" class="flex-grow-1"></iframe>
+</div>
+
+</div>
+</div>
+
 <script>
-let pyodideReady = false;
-let pyodide;
+let generatedCode = "";
+let generatedFile = "";
 
-async function loadPyodideAsync() {
-    pyodide = await loadPyodide();
-    pyodideReady = true;
-}
-loadPyodideAsync();
-
-function typeWriterEffect(element, text, speed = 10) {
-    return new Promise(resolve => {
-        let i = 0;
-        function typing() {
-            if (i < text.length) {
-                element.textContent += text.charAt(i);
-                element.scrollTop = element.scrollHeight; // scroll automatique
-                i++;
-                setTimeout(typing, speed);
-            } else resolve();
-        }
-        typing();
-    });
-}
-
-async function executeCode(language, code) {
-    const monitor = document.getElementById("liveFrame");
-    if (language === "html") {
-        monitor.srcdoc = code;
-    } else if (language === "js") {
-        try {
-            let result = eval(code);
-            monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${result === undefined ? "" : result}</pre>`;
-        } catch (e) {
-            monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
-        }
-    } else if (language === "python") {
-        if (!pyodideReady) {
-            monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Python engine loading...</pre>`;
-            await loadPyodideAsync();
-        }
-        try {
-            let output = await pyodide.runPythonAsync(`
-import sys
-import io
-buf = io.StringIO()
-sys.stdout = buf
-${code}
-buf.getvalue()
-            `);
-            monitor.srcdoc = `<pre style="background:black;color:lime;padding:10px;">${output}</pre>`;
-        } catch (e) {
-            monitor.srcdoc = `<pre style="background:black;color:red;padding:10px;">${e}</pre>`;
-        }
-    } else {
-        monitor.srcdoc = `<pre style="background:black;color:yellow;padding:10px;">Langage non supporté pour exécution</pre>`;
-    }
-}
-
-document.getElementById("promptForm").addEventListener("submit", async (e) => {
+document.getElementById("promptForm").addEventListener("submit", async e => {
     e.preventDefault();
+
     const prompt = document.getElementById("prompt").value.trim();
     if (!prompt) return;
 
-    const codeElement = document.getElementById("codeText");
-    const spinner = document.getElementById("spinner");
-    const spinnerText = document.getElementById("spinnerText");
-    codeElement.textContent = "";
-    spinner.classList.remove("d-none");
-    document.getElementById("liveFrame").srcdoc = "";
+    const output = document.getElementById("codeOutput");
+    const iframe = document.getElementById("preview");
+    const downloadBtn = document.getElementById("downloadBtn");
 
-    // compteur de secondes
-    let seconds = 0;
-    spinnerText.textContent = `⏳ Génération du code en cours... 0s`;
-    let timer = setInterval(() => {
-        seconds++;
-        spinnerText.textContent = `⏳ Génération du code en cours... ${seconds}s`;
-    }, 1000);
+    output.textContent = "⏳ Génération en cours...";
+    iframe.srcdoc = "";
+    downloadBtn.classList.add("d-none");
 
-    const response = await fetch("", {
+    const res = await fetch("", {
         method: "POST",
         body: new URLSearchParams({ prompt })
     });
-    const data = await response.json();
 
-    clearInterval(timer);
-    spinner.classList.add("d-none");
+    const data = await res.json();
+    generatedCode = data.code;
+    generatedFile = data.filename;
 
-    let code = "";
-    if (data.message && data.message.content && data.message.content.length > 0) {
-        code = data.message.content[0].text;
+    output.textContent = generatedCode;
 
-        // Si le code est long, on peut afficher progressivement
-        const match = code.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
-        if (match) code = match[1];
-    } else {
-        code = "❌ Erreur API: " + JSON.stringify(data, null, 2);
+    // Preview HTML
+    if (generatedFile.endsWith(".html")) {
+        iframe.srcdoc = generatedCode;
     }
 
-    await typeWriterEffect(codeElement, code);
-
-    // Déterminer le langage
-    let lang = "js";
-    if (code.includes("<html") || code.includes("<body")) lang = "html";
-    else if (prompt.toLowerCase().includes("python")) lang = "python";
-
-    await executeCode(lang, code);
+    downloadBtn.textContent = `⬇ Télécharger ${generatedFile}`;
+    downloadBtn.classList.remove("d-none");
 });
+
+// ================= DOWNLOAD =================
+document.getElementById("downloadBtn").onclick = () => {
+    const blob = new Blob([generatedCode], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = generatedFile;
+    a.click();
+};
 </script>
 </body>
 </html>
+
 
 
